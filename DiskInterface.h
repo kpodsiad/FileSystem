@@ -18,12 +18,17 @@ uint32 readSuperBlock(FILE *disk, void* buffer);
 
 uint32 writeInodeToBitmap(FILE *disk, void* buffer, uint32 index);
 uint32 readInodeFromBitmap(FILE *disk, void *buffer, uint32 index);
+uint32 setInodeStatusToBitmap(FILE *disk, uint32 index, byte value);
 
 uint32 writeInodesBitmap(FILE *disk, void* buffer);
 uint32 readInodesBitmap(FILE *disk, void* buffer);
 
 uint32 writeInode(FILE *disk, void* buffer, uint32 index);
 uint32 readInode(FILE *disk, void *buffer, uint32 index);
+
+uint32 writeDataBlockToBitmap(FILE *disk, void* buffer, uint32 index);
+uint32 readDataBlockFromBitmap(FILE *disk, void *buffer, uint32 index);
+uint32 readDataBlocksBitmap(FILE *disk, void *buffer);
 
 uint32 writeData(FILE *file, void *buffer, uint32 bytesToWrite, uint32 offset);
 uint32 readData(FILE *file, void *buffer, uint32 bytesToRead, uint32 offset);
@@ -82,10 +87,10 @@ void createDisk(char *pathToDisk, uint32 bytes)
 	writeSuperBlock(disk, sBlock);
 	bitmapOfInodes = calloc(1, size(iNodesBitmap));
 	writeData(disk, bitmapOfInodes, size(iNodesBitmap), iNodesBitmapOffset);
-	inode = calloc(1, size(iNode));
 
+	inode = calloc(1, size(iNode));
 	for(uint32 i = 0; i<MAX_FILES; ++i)
-		writeData(disk, inode, size(iNode), 0);
+		writeInode(disk, inode, i);
 
 	for(uint32 i = 0; i<sBlock->maxDataBlocks; ++i)
 		writeData(disk, &zeroByte, size(byte), 0);
@@ -116,6 +121,13 @@ uint32 readInodeFromBitmap(FILE *disk, void *buffer, uint32 index)
 	return readData(disk, buffer, 1, iNodesBitmapOffset + index * size(byte));
 }
 
+uint32 setInodeStatusToBitmap(FILE *disk, uint32 index, byte value)
+{
+	byte givenValue = value;
+	return writeInodeToBitmap(disk, &value, index);
+}
+
+
 uint32 writeInodesBitmap(FILE *disk, void* buffer)
 {
 	return writeData(disk, buffer, size(iNodesBitmap), iNodesBitmapOffset);
@@ -136,11 +148,30 @@ uint32 readInode(FILE *disk, void *buffer, uint32 index)
 	return readData(disk, buffer, size(iNode), iNodesOffset + index * size(iNode));
 }
 
+uint32 writeDataBlockToBitmap(FILE *disk, void* buffer, uint32 index)
+{
+	superBlock sb;
+	readSuperBlock(disk, &sb);
+	return writeData(disk, buffer, size(byte), sb.dataBlocksOffset + index*size(byte));
+}
+
+uint32 readDataBlockFromBitmap(FILE *disk, void *buffer, uint32 index)
+{
+	superBlock sb;
+	readSuperBlock(disk, &sb);
+	return readData(disk, buffer, size(byte), sb.dataBlocksOffset + index*size(byte));
+}
+
+uint32 readDataBlocksBitmap(FILE *disk, void *buffer)
+{
+	superBlock sb;
+	readSuperBlock(disk, &sb);
+	return readData(disk, buffer, sb.maxDataBlocks*size(byte), sb.dataBlocksOffset);
+}
+
 uint32 writeData(FILE *file, void *buffer, uint32 bytesToWrite, uint32 offset)
 {
-	if(offset != 0)
-		fseek(file, offset, SEEK_SET);
-
+	fseek(file, offset, SEEK_SET);
 	return (uint32)fwrite(buffer, bytesToWrite, 1, file );
 }
 
@@ -166,8 +197,14 @@ uint32 readDataBlock(FILE *disk, void* buffer, uint32 blockIndex)
 
 uint32 getFirstFreeInode(FILE *disk)
 {
-	superBlock sb;
-	readSuperBlock(disk, &sb);
+	byte iNodeBit[MAX_FILES];
+	readInodesBitmap(disk, iNodeBit);
+	for (uint32 i = 0; i < MAX_FILES; ++i)
+	{
+		if(iNodeBit[i] == 0)
+			return i;
+	}
+	return MAX_FILES;
 }
 
 FILE* openFile(char *pathToFile)

@@ -6,6 +6,7 @@
 
 void testInodeBitmapReadWrite(FILE *disk);
 void testInodeReadWrite(FILE *disk);
+void testGetFreeInodeFromInodeBitmap(FILE *disk);
 
 int main()
 {
@@ -15,8 +16,9 @@ int main()
 
 	FILE *disk = openVirtualDisk(filename);
 	readSuperBlock(disk, &sb);
-	testInodeBitmapReadWrite(disk);
-	testInodeReadWrite(disk);
+	//testInodeBitmapReadWrite(disk);
+	//testInodeReadWrite(disk);
+	testGetFreeInodeFromInodeBitmap(disk);
 
 	printf("%ld\n", size(superBlock));
 //	printf("%ld\n", size(iNode));
@@ -30,6 +32,23 @@ int main()
 	fclose(disk);
 	return 0;
 }
+void testGetFreeInodeFromInodeBitmap(FILE *disk)
+{
+	byte bitmap[100];
+	byte nonZeroByte = 1;
+
+	writeInodeToBitmap(disk, &nonZeroByte, 0);
+	writeInodeToBitmap(disk, &nonZeroByte, 1);
+	writeInodeToBitmap(disk, &nonZeroByte, 2);
+	writeInodeToBitmap(disk, &nonZeroByte, 3);
+	writeInodeToBitmap(disk, &nonZeroByte, 5);
+	readInodesBitmap(disk, bitmap);
+	printf("");
+	uint32 index = getFirstFreeInode(disk);
+
+	printf("");
+}
+
 
 void testInodeBitmapReadWrite(FILE *disk)
 {
@@ -54,9 +73,16 @@ void testInodeReadWrite(FILE *disk)
 
 	writeInode(disk, &node, 0);
 	writeInode(disk, &node, 5);
+	writeInode(disk, &node, 15);
 	for (int i = 0; i < 100; ++i)
 	{
 		readInode(disk, nodeArray+i, i);
+	}
+
+	for (int i = 0; i < 100; ++i)
+	{
+		if(nodeArray[i].usedBlocks!=0 || nodeArray[i].fileSize!=0 || nodeArray[i].firstBlockIndex != 0)
+			printf("%d ||| %d | %d  | %d\n",i, nodeArray[i].usedBlocks, nodeArray[i].fileSize, nodeArray[i].firstBlockIndex);
 	}
 	printf("");
 }
