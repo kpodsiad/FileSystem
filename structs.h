@@ -9,11 +9,12 @@
 
 #define BLOCK_SIZE 4096
 #define MAX_NAME_LENGTH 32
-#define MAX_FILES 100
+#define MAX_FILES 20
 #define size(b) ( ( sizeof(b) ) )
 
 
 typedef uint32_t uint32;
+typedef int32_t int32;
 typedef uint8_t int8;
 typedef uint16_t uint16;
 typedef char byte;
@@ -21,9 +22,8 @@ typedef char byte;
 
 typedef struct dataBlock
 {
-	byte data[BLOCK_SIZE];
 	uint32 nextBlockIndex;
-
+	byte data[BLOCK_SIZE];
 } dataBlock;
 
 typedef struct iNode
